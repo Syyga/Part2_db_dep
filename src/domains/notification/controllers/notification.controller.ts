@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { RequestWithUser } from "../interfaces/requestWithUser";
 import * as notificationService from "../services/notificationService";
-import { CustomError } from "../../../utils/errorHandler";
 
 // 알림 조회 요청 처리
 export const getNotifications = async (
