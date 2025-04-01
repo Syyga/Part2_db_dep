@@ -11,7 +11,10 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://123123.com"],
+    origin: [
+      "http://localhost:3000",
+      "https://part2-db-dep.onrender.com://123123.com",
+    ],
     credentials: true,
   })
 );
