@@ -1,10 +1,12 @@
+export type ExchangeStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "FAILED";
+
 export interface ExchangeOffer {
   id: string;
   saleCardId: string;
   offererId: string;
-  offeredCardId: string;
-  quantity: number;
+  userPhotoCardId: string;
   status: string;
+  content: String;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,43 +1,40 @@
 import { PrismaClient } from "@prisma/client";
 import {
-  MarketDetailResponse,
-  MarketItemOffer,
+  BasicDetail,
+  ExchangeInfo,
+  Offer,
 } from "../interfaces/detail.interfaces";
 
 const prisma = new PrismaClient();
 
 /**
- * 마켓 아이템 상세 정보 조회
+ * 마켓 아이템 기본 상세 정보 조회
  *
  * @param id 판매 카드 ID
  * @param userId 현재 로그인한 사용자 ID
- * @returns 마켓 아이템 상세 정보 및 소유 정보
+ * @returns 마켓 아이템 기본 상세 정보
  */
-export const getMarketItemDetail = async (
+export const getBasicDetail = async (
   id: string,
   userId: string
-): Promise<MarketDetailResponse> => {
-  // 판매 카드 정보 조회
+): Promise<BasicDetail> => {
   const saleCard = await prisma.saleCard.findUnique({
     where: { id },
+    include: {
+      photoCard: true,
+    },
   });
 
   if (!saleCard) {
     throw new Error(`ID가 ${id}인 판매 카드를 찾을 수 없습니다.`);
   }
 
-  // 포토카드 정보 조회
-  const photoCard = await prisma.photoCard.findUnique({
-    where: { id: saleCard.photoCardId },
-  });
-
-  if (!photoCard) {
+  if (!saleCard.photoCard) {
     throw new Error(
       `ID가 ${saleCard.photoCardId}인 포토카드를 찾을 수 없습니다.`
     );
   }
 
-  // 판매자 정보 조회
   const seller = await prisma.user.findUnique({
     where: { id: saleCard.sellerId },
   });
@@ -48,57 +45,89 @@ export const getMarketItemDetail = async (
     );
   }
 
-  // 원작자 정보 조회
   const creator = await prisma.user.findUnique({
-    where: { id: photoCard.creatorId },
+    where: { id: saleCard.photoCard.creatorId },
   });
 
   if (!creator) {
     throw new Error(
-      `ID가 ${photoCard.creatorId}인 원작자 정보를 찾을 수 없습니다.`
+      `ID가 ${saleCard.photoCard.creatorId}인 원작자 정보를 찾을 수 없습니다.`
     );
   }
 
-  // 사용자가 판매자인지 여부 확인 (isMine)
   const isMine = saleCard.sellerId === userId;
 
-  // 현재 사용자의 포토카드 소유 정보 조회
-  const userPhotoCard = await prisma.userPhotoCard.findFirst({
-    where: {
-      photoCardId: saleCard.photoCardId,
-      ownerId: userId,
-    },
-  });
+  let totalOwnAmount = 0;
+  try {
+    const sellerPhotoCards = await prisma.userPhotoCard.findMany({
+      where: {
+        photoCardId: saleCard.photoCardId,
+        ownerId: saleCard.sellerId,
+      },
+    });
 
-  // 판매 카드에 대한 거래 완료 수량 계산
+    totalOwnAmount = sellerPhotoCards.reduce(
+      (sum, card) => sum + card.quantity,
+      0
+    );
+
+    const exchangeOffers = await prisma.exchangeOffer.findMany({
+      where: {
+        offererId: saleCard.sellerId,
+        status: "PENDING",
+      },
+      include: {
+        userPhotoCard: true,
+      },
+    });
+
+    let exchangeOfferCount = 0;
+
+    if (exchangeOffers.length > 0) {
+      for (const offer of exchangeOffers) {
+        if (
+          offer.userPhotoCard &&
+          offer.userPhotoCard.photoCardId === saleCard.photoCardId
+        ) {
+          exchangeOfferCount += 1;
+        }
+      }
+
+      totalOwnAmount -= exchangeOfferCount;
+    }
+  } catch (error) {
+    console.error("판매자의 포토카드 소유 정보 조회 중 오류:", error);
+  }
+
   const completedTransactions = await prisma.transactionLog.findMany({
     where: {
       saleCardId: saleCard.id,
       transactionType: {
-        in: ["PURCHASE", "EXCHANGE"],
+        in: ["EXCHANGE", "SALE"],
       },
     },
   });
 
-  // 거래 완료된 총 수량 계산
   const completedQuantity = completedTransactions.reduce(
     (sum, transaction) => sum + transaction.quantity,
     0
   );
 
-  // 기본 응답 구성
-  const response: MarketDetailResponse = {
+  const response: BasicDetail = {
     id: saleCard.id,
-    userNickname: creator.nickname,
-    imageUrl: photoCard.imageUrl,
-    name: photoCard.name,
-    grade: photoCard.grade,
-    genre: photoCard.genre,
-    description: photoCard.description,
+    creatorNickname: creator.nickname,
+    imageUrl: saleCard.photoCard.imageUrl,
+    name: saleCard.photoCard.name,
+    grade: saleCard.photoCard.grade,
+    genre: saleCard.photoCard.genre,
+    description: saleCard.photoCard.description,
     price: saleCard.price,
-    availableAmount: saleCard.quantity - completedQuantity, // 현재 거래 가능한 수량
-    totalAmount: saleCard.quantity, // 처음 등록한 총 판매 수량
-    totalOwnAmount: userPhotoCard?.quantity || 0, // 사용자의 총 보유량
+    availableAmount: Math.min(
+      saleCard.quantity - completedQuantity,
+      totalOwnAmount
+    ),
+    totalAmount: saleCard.quantity,
+    totalOwnAmount,
     createdAt: saleCard.createdAt.toISOString(),
     exchangeDetail: {
       grade: saleCard.exchangeGrade,
@@ -106,11 +135,86 @@ export const getMarketItemDetail = async (
       description: saleCard.exchangeDescription,
     },
     isMine,
-    receivedOffers: null,
-    myOffers: null,
   };
 
-  // 내 카드인 경우: 받은 교환 제안 조회
+  return response;
+};
+
+/**
+ * 교환 제안에 대한 상세 정보를 조회하는 헬퍼 함수
+ * @param offer 교환 제안 정보
+ * @param userId 현재 사용자 ID
+ * @returns 교환 제안 상세 정보
+ */
+async function getOfferDetails(offer: any, userId: string): Promise<Offer> {
+  const userPhotoCard = await prisma.userPhotoCard.findUnique({
+    where: { id: offer.userPhotoCardId },
+  });
+
+  if (!userPhotoCard) {
+    throw new Error(
+      `제안된 카드 정보를 찾을 수 없습니다. ID: ${offer.userPhotoCardId}`
+    );
+  }
+
+  const offeredCard = await prisma.photoCard.findUnique({
+    where: { id: userPhotoCard.photoCardId },
+    include: {
+      creator: {
+        select: { nickname: true },
+      },
+    },
+  });
+
+  const offerer = await prisma.user.findUnique({
+    where: { id: offer.offererId || userId },
+  });
+
+  if (!offeredCard || !offerer) {
+    throw new Error(`교환 제안 정보를 찾을 수 없습니다. ID: ${offer.id}`);
+  }
+
+  return {
+    id: offer.id,
+    creatorNickname: offeredCard.creator.nickname,
+    name: offeredCard.name,
+    description: offer.content,
+    imageUrl: offeredCard.imageUrl,
+    grade: offeredCard.grade,
+    genre: offeredCard.genre,
+    price: offeredCard.price,
+    createdAt: offer.createdAt.toISOString(),
+  };
+}
+
+/**
+ * 마켓 아이템 교환 제안 정보 조회
+ *
+ * @param id 판매 카드 ID
+ * @param userId 현재 로그인한 사용자 ID
+ * @returns 마켓 아이템 교환 제안 정보
+ */
+export const getExchangeDetail = async (
+  id: string,
+  userId: string
+): Promise<ExchangeInfo> => {
+  const saleCard = await prisma.saleCard.findUnique({
+    where: { id },
+  });
+
+  if (!saleCard) {
+    throw new Error(`ID가 ${id}인 판매 카드를 찾을 수 없습니다.`);
+  }
+
+  const isMine = saleCard.sellerId === userId;
+
+  const response: ExchangeInfo = {
+    saleId: saleCard.id,
+    isMine,
+    receivedOffers: isMine ? [] : null,
+    myOffers: isMine ? null : [],
+  };
+
   if (isMine) {
     const exchangeOffers = await prisma.exchangeOffer.findMany({
       where: {
@@ -119,56 +223,13 @@ export const getMarketItemDetail = async (
       },
     });
 
-    // 교환 제안 상세 정보 조회
     if (exchangeOffers.length > 0) {
-      const offersWithDetails: MarketItemOffer[] = await Promise.all(
-        exchangeOffers.map(async (offer) => {
-          // 제안된 카드 정보 조회
-          const userPhotoCard = await prisma.userPhotoCard.findUnique({
-            where: { id: offer.userPhotoCardId },
-          });
-
-          if (!userPhotoCard) {
-            throw new Error(
-              `제안된 카드 정보를 찾을 수 없습니다. ID: ${offer.userPhotoCardId}`
-            );
-          }
-
-          // 제안된 카드의 포토카드 정보 조회
-          const offeredCard = await prisma.photoCard.findUnique({
-            where: { id: userPhotoCard.photoCardId },
-          });
-
-          const offerer = await prisma.user.findUnique({
-            where: { id: offer.offererId },
-          });
-
-          if (!offeredCard || !offerer) {
-            throw new Error(
-              `교환 제안 정보를 찾을 수 없습니다. ID: ${offer.id}`
-            );
-          }
-
-          return {
-            id: offer.id,
-            offererNickname: offerer.nickname,
-            name: offeredCard.name,
-            description: offeredCard.description,
-            imageUrl: offeredCard.imageUrl,
-            grade: offeredCard.grade,
-            genre: offeredCard.genre,
-            price: offeredCard.price,
-            createdAt: offer.createdAt.toISOString(),
-          };
-        })
+      const offersWithDetails: Offer[] = await Promise.all(
+        exchangeOffers.map((offer) => getOfferDetails(offer, userId))
       );
-
       response.receivedOffers = offersWithDetails;
-    } else {
-      response.receivedOffers = [];
     }
   } else {
-    // 다른 사람의 카드인 경우: 내가 보낸 교환 제안 조회
     const myOffers = await prisma.exchangeOffer.findMany({
       where: {
         saleCardId: id,
@@ -178,52 +239,10 @@ export const getMarketItemDetail = async (
     });
 
     if (myOffers.length > 0) {
-      const myOffersWithDetails: MarketItemOffer[] = await Promise.all(
-        myOffers.map(async (offer) => {
-          // 제안한 카드 정보 조회
-          const userPhotoCard = await prisma.userPhotoCard.findUnique({
-            where: { id: offer.userPhotoCardId },
-          });
-
-          if (!userPhotoCard) {
-            throw new Error(
-              `제안한 카드 정보를 찾을 수 없습니다. ID: ${offer.userPhotoCardId}`
-            );
-          }
-
-          // 제안한 카드의 포토카드 정보 조회
-          const offeredCard = await prisma.photoCard.findUnique({
-            where: { id: userPhotoCard.photoCardId },
-          });
-
-          // 자신의 닉네임 조회
-          const offerer = await prisma.user.findUnique({
-            where: { id: userId },
-          });
-
-          if (!offeredCard || !offerer) {
-            throw new Error(
-              `내 교환 제안 정보를 찾을 수 없습니다. ID: ${offer.id}`
-            );
-          }
-
-          return {
-            id: offer.id,
-            offererNickname: offerer.nickname,
-            name: offeredCard.name,
-            description: offeredCard.description,
-            imageUrl: offeredCard.imageUrl,
-            grade: offeredCard.grade,
-            genre: offeredCard.genre,
-            price: offeredCard.price,
-            createdAt: offer.createdAt.toISOString(),
-          };
-        })
+      const myOffersWithDetails: Offer[] = await Promise.all(
+        myOffers.map((offer) => getOfferDetails(offer, userId))
       );
-
       response.myOffers = myOffersWithDetails;
-    } else {
-      response.myOffers = [];
     }
   }
 

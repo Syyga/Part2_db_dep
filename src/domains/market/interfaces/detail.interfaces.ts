@@ -1,7 +1,7 @@
 // 교환 제안 정보 인터페이스
-export interface MarketItemOffer {
+export interface Offer {
   id: string;
-  offererNickname: string;
+  creatorNickname: string;
   name: string;
   description: string;
   imageUrl: string;
@@ -11,10 +11,17 @@ export interface MarketItemOffer {
   createdAt: string;
 }
 
-// 마켓 상세 응답 인터페이스
-export interface MarketDetailResponse {
+// 교환 상세 정보 인터페이스
+export interface ExchangeDetail {
+  grade: string;
+  genre: string;
+  description: string;
+}
+
+// 기본 상세 정보 인터페이스
+export interface BasicDetail {
   id: string;
-  userNickname: string;
+  creatorNickname: string;
   imageUrl: string;
   name: string;
   grade: string;
@@ -26,11 +33,19 @@ export interface MarketDetailResponse {
   totalOwnAmount: number;
   createdAt: string;
   isMine: boolean;
-  exchangeDetail: {
-    grade: string;
-    genre: string;
-    description: string;
-  };
-  receivedOffers: MarketItemOffer[] | null;
-  myOffers: MarketItemOffer[] | null;
+  exchangeDetail: ExchangeDetail;
+}
+
+// 교환 제안 정보 인터페이스
+export interface ExchangeInfo {
+  saleId: string;
+  isMine: boolean;
+  receivedOffers: Offer[] | null;
+  myOffers: Offer[] | null;
+}
+
+// 마켓 전체 상세 응답 인터페이스 (기본 정보 + 교환 제안 정보)
+export interface DetailResponse extends BasicDetail {
+  receivedOffers: Offer[];
+  myOffers: Offer[];
 }

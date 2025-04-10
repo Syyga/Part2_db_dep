@@ -1,12 +1,15 @@
 model UserPhotoCard {
-  id          String   @id @default(uuid())
-  ownerId     String
-  photoCardId String
-  quantity    Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  ownerId   String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  saleCard SaleCard[]
+  saleCard      SaleCard[]
+  exchangeOffer ExchangeOffer[]
+  photoCardId   String
+  photoCard     PhotoCard       @relation(fields: [photoCardId], references: [id])
 
+  @@unique([ownerId, photoCardId]) // ownerId_photoCardId
   @@index([ownerId])
 }

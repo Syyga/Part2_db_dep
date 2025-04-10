@@ -1,12 +1,14 @@
 model ExchangeOffer {
-  id              String   @id @default(uuid())
+  id        String   @id @default(uuid())
+  offererId String
+  status    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   saleCardId      String
-  offererId       String
+  saleCard        SaleCard      @relation(fields: [saleCardId], references: [id])
   userPhotoCardId String
-  status          String
-  content         String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  // marketOfferId   String      @unique
-  // marketOffer     MarketOffer @relation(fields: [marketOfferId], references: [id])
+  userPhotoCard   UserPhotoCard @relation(fields: [userPhotoCardId], references: [id])
+  marketOffer     MarketOffer?
 }

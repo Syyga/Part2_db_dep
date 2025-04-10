@@ -4,6 +4,7 @@ import {
   signupService,
   logoutService,
   refreshTokenService,
+  getMeService,
 } from "../services/auth.service";
 import { signupSchema, loginSchema } from "../../../zod/auth.schema";
 import { CustomError } from "../../../utils/errors";
@@ -45,4 +46,12 @@ export const logout = (req: Request, res: Response) => {
 /// 리프레시 토큰 컨트롤러
 export const refreshAccessToken = async (req: Request, res: Response) => {
   await refreshTokenService(req, res);
+};
+
+export const getMe = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user.id;
+
+  const response = await getMeService(userId);
+
+  res.status(200).send(response);
 };

@@ -1,7 +1,41 @@
-node_modules
-# Keep environment variables out of version control
+# Node modules
+node_modules/
+
+# Build output
+dist/
+
+# Prisma generated files
+prisma/.env
+prisma/dev.db
+prisma/dev.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# dotenv environment variables file
 .env
+
+# TypeScript cache
+*.tsbuildinfo
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# VSCode settings (optional, if you want to ignore them)
+.vscode/
+
+# Coverage reports
+coverage/
+
+# Local seed data (optional, depending on how you use it)
+prisma/seeds/generated-data.json
+
 package-lock.json
+
 prisma/migrations
 
 .vscode/

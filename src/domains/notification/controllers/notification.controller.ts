@@ -8,12 +8,22 @@ export const getNotifications = async (
   res: Response
 ): Promise<void> => {
   const userId = req.user.id;
+  const rawLimit = req.query.limit;
+  const limit = rawLimit ? parseInt(req.query.limit as string) : undefined;
+  const cursor = req.query.cursor as string | undefined;
 
   try {
     const notifications = await notificationService.getUserNotifications(
-      userId
+      userId,
+      limit,
+      cursor
     );
-    res.status(200).json({ notifications });
+
+    const nextCursor =
+      notifications.length > 0
+        ? notifications[notifications.length - 1].id
+        : null;
+    res.status(200).json({ notifications, nextCursor });
     return;
   } catch (error) {
     res.status(500).json({ message: "서버 오류", error });

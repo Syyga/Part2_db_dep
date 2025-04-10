@@ -1,19 +1,3 @@
-// model SaleCard {
-//   id                  String      @id @default(uuid())
-//   sellerId            String
-//   userPhotoCardId     String
-//   quantity            Int
-//   price               Int
-//   status              String
-//   exchangeDescription String?
-//   exchangeGrade       String?
-//   exchangeGenre       String?
-//   createdAt           DateTime    @default(now())
-//   updatedAt           DateTime    @updatedAt
-//   marketOfferId       String      @unique
-//   marketOffer         MarketOffer @relation(fields: [marketOfferId], references: [id])
-// }
-
 model SaleCard {
   id                  String   @id @default(uuid())
   quantity            Int
@@ -25,11 +9,18 @@ model SaleCard {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  seller          User          @relation(fields: [sellerId], references: [id])
+  seller          User            @relation(fields: [sellerId], references: [id])
   sellerId        String
-  photoCard       PhotoCard     @relation(fields: [photoCardId], references: [id])
+  photoCard       PhotoCard       @relation(fields: [photoCardId], references: [id])
   photoCardId     String
-  userPhotoCard   UserPhotoCard @relation(fields: [userPhotoCardId], references: [id])
+  userPhotoCard   UserPhotoCard   @relation(fields: [userPhotoCardId], references: [id])
   userPhotoCardId String
-  // MarketOffer     MarketOffer[]
+  exchangeOffer   ExchangeOffer[]
+
+  marketOffer MarketOffer?
+
+  @@unique([createdAt, id])
+  @@index([sellerId])
+  @@index([status])
+  @@index([photoCardId])
 }

@@ -11,6 +11,9 @@
     "prisma:migrate": "prisma migrate dev",
     "seed": "ts-node prisma/seeds/seed.ts"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seeds/seed.ts"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

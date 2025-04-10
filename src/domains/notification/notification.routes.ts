@@ -10,10 +10,4 @@ router.patch(
   authenticate,
   notificationController.readNotification
 );
-router.post(
-  "/",
-  authenticate,
-  notificationController.createNotificationController
-); // 알림 생성 API
-
 export default router;

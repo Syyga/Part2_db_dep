@@ -1,0 +1,13 @@
+model MarketOffer {
+  id              String          @id @default(uuid())
+  type            MarketOfferType
+  ownerId         String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  saleCard        SaleCard?       @relation(fields: [saleCardId], references: [id])
+  saleCardId      String?         @unique
+  exchangeOffer   ExchangeOffer?  @relation(fields: [exchangeOfferId], references: [id])
+  exchangeOfferId String?         @unique
+
+  @@index([ownerId])
+}
