@@ -12,7 +12,8 @@
     "seed": "ts-node prisma/seeds/seed.ts"
   },
   "prisma": {
-    "seed": "ts-node prisma/seeds/seed.ts"
+    "seed": "ts-node prisma/seeds/seed.ts",
+    "schema": "prisma/schema/schema.prisma"
   },
   "keywords": [],
   "author": "",
