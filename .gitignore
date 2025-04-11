@@ -5,8 +5,8 @@ node_modules/
 dist/
 
 # Prisma generated files
-prisma/.env
-prisma/dev.db
+# prisma/.env
+# prisma/dev.db
 prisma/dev.db-journal
 
 # Logs
