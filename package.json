@@ -13,7 +13,7 @@
   },
   "prisma": {
     "seed": "ts-node prisma/seeds/seed.ts",
-    "schema": "prisma/schema/schema.prisma"
+    "schema": "prisma/schema.prisma"
   },
   "keywords": [],
   "author": "",
