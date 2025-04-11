@@ -1,6 +1,0 @@
-model Point {
-  id     String @id @default(uuid())
-  userId String @unique
-  points Int    @default(0)
-  user   User   @relation(fields: [userId], references: [id])
-}

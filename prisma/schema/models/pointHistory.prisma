@@ -1,8 +1,0 @@
-model PointHistory {
-  id           String   @id @default(uuid())
-  pointId      String
-  amount       Int
-  resourceType String
-  resourceId   String
-  createdAt    DateTime @default(now())
-}

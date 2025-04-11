@@ -1,10 +1,192 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["prismaSchemaFolder"]
-  prismaSchemaFolder = "./models"
 }
 
 datasource db {
   provider     = "postgresql"
   url          = env("DATABASE_URL")
+}
+
+model Auth {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  refreshToken String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model ExchangeOffer {
+  id        String   @id @default(uuid())
+  offererId String
+  status    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  saleCardId      String
+  saleCard        SaleCard      @relation(fields: [saleCardId], references: [id])
+  userPhotoCardId String
+  userPhotoCard   UserPhotoCard @relation(fields: [userPhotoCardId], references: [id])
+  marketOffer     MarketOffer?
+}
+
+model MarketOffer {
+  id              String          @id @default(uuid())
+  type            MarketOfferType
+  ownerId         String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  saleCard        SaleCard?       @relation(fields: [saleCardId], references: [id])
+  saleCardId      String?         @unique
+  exchangeOffer   ExchangeOffer?  @relation(fields: [exchangeOfferId], references: [id])
+  exchangeOfferId String?         @unique
+
+  @@index([ownerId])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  message   String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+}
+
+model PhotoCard {
+  id          String   @id @default(uuid())
+  name        String
+  genre       String
+  grade       String
+  price       Int
+  description String
+  imageUrl    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userPhotoCard UserPhotoCard[]
+  saleCard      SaleCard[]
+  creatorId     String
+  creator       User            @relation(fields: [creatorId], references: [id])
+
+  @@index([grade, genre])
+}
+
+model Point {
+  id     String @id @default(uuid())
+  userId String @unique
+  points Int    @default(0)
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model PointHistory {
+  id           String   @id @default(uuid())
+  pointId      String
+  amount       Int
+  resourceType String
+  resourceId   String
+  createdAt    DateTime @default(now())
+}
+
+model RandomBoxDraw {
+  id           String   @id @default(uuid())
+  userId       String
+  earnedPoints Int
+  createdAt    DateTime @default(now())
+}
+
+model SaleCard {
+  id                  String   @id @default(uuid())
+  quantity            Int
+  price               Int
+  status              String
+  exchangeDescription String
+  exchangeGrade       String
+  exchangeGenre       String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  seller          User            @relation(fields: [sellerId], references: [id])
+  sellerId        String
+  photoCard       PhotoCard       @relation(fields: [photoCardId], references: [id])
+  photoCardId     String
+  userPhotoCard   UserPhotoCard   @relation(fields: [userPhotoCardId], references: [id])
+  userPhotoCardId String
+  exchangeOffer   ExchangeOffer[]
+
+  marketOffer MarketOffer?
+
+  @@unique([createdAt, id])
+  @@index([sellerId])
+  @@index([status])
+  @@index([photoCardId])
+}
+
+model TransactionLog {
+  id              String   @id @default(uuid())
+  transactionType String
+  saleCardId      String
+  newOwnerId      String
+  oldOwnerId      String
+  quantity        Int
+  totalPrice      Int
+  createdAt       DateTime @default(now())
+
+  @@index([saleCardId])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  nickname  String   @unique
+  password  String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  saleCard  SaleCard[]
+  photoCard PhotoCard[]
+  points    Point?
+}
+
+model UserPhotoCard {
+  id        String   @id @default(uuid())
+  ownerId   String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  saleCard      SaleCard[]
+  exchangeOffer ExchangeOffer[]
+  photoCardId   String
+  photoCard     PhotoCard       @relation(fields: [photoCardId], references: [id])
+
+  @@unique([ownerId, photoCardId]) // ownerId_photoCardId
+  @@index([ownerId])
+}
+
+
+enum SaleCardStatus {
+  ON_SALE
+  SOLD_OUT
+  CANCELED
+}
+
+enum ExchangeOfferStatus {
+  PENDING
+  ACCEPTED
+  // DECLINED
+  FAILED
+}
+
+enum MarketOfferType {
+  SALE
+  EXCHANGE
+}
+
+enum PhotoCardGrade {
+  COMMON
+  RARE
+  SUPER_RARE
+  LEGENDARY
 }
