@@ -68,6 +68,12 @@ export const PhotocardsQuerySchema = z.object({
 export const PhotocardsQueryWithTransform = PhotocardsQuerySchema;
 
 // 포토카드 생성 스키마
+export enum Grade {
+  LEGENDARY = 1,
+  SUPER_RARE = 3,
+  RARE = 8,
+  COMMON = 20,
+}
 export const CreatePhotocardSchema = z.object({
   name: z.string().min(1, { message: "포토카드 이름은 필수입니다." }),
   genre: z.enum([...PHOTOCARD_GENRES] as [string, ...string[]], {
@@ -76,13 +82,15 @@ export const CreatePhotocardSchema = z.object({
   grade: z.enum([...PHOTOCARD_GRADES] as [string, ...string[]], {
     message: `등급은 ${PHOTOCARD_GRADES.join(", ")} 중 하나여야 합니다.`,
   }),
+  stock: z.nativeEnum(Grade, {
+    errorMap: () => ({ message: "유효한 발행량입니다." }),
+  }),
   price: z.preprocess(
     (val) => (typeof val === "string" ? parseInt(val, 10) : val),
     z.number().int().min(0, { message: "가격은 0 이상의 정수여야 합니다." })
   ),
   description: z.string().min(1, { message: "설명은 필수입니다." }),
-  imageUrl: z.string().url({ message: "유효한 이미지 URL을 입력해주세요." }),
 });
 
-// 응답 타입
+// 요청 타입
 export type CreatePhotocardRequest = z.infer<typeof CreatePhotocardSchema>;

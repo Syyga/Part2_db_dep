@@ -6,7 +6,7 @@ import {
   PhotocardInfo,
   FilterPhotoCard,
   Cursor,
-  CreatePhotocardRequest,
+  CreatePhotocard,
 } from "../types/photocard.type";
 import { PHOTOCARD_GENRES } from "../constants/filter.constant";
 import { Prisma } from "@prisma/client";
@@ -449,65 +449,57 @@ const getFilterInfo = async (userId: string): Promise<FilterPhotoCard> => {
 
 /**
  * 포토카드 생성 서비스
- * @param data 포토카드 생성 데이터
+ * @param body 포토카드 생성 데이터
  * @param imageUrl 이미지 URL
  * @param userId 사용자 ID
  * @returns 생성된 포토카드 정보
  */
-const createPhotocard = async (
-  data: CreatePhotocardRequest,
-  imageUrl: string,
-  userId: string
+const createPhotocard: CreatePhotocard = async (
+  body,
+  imageUrl,
+  publicId,
+  userId
 ) => {
-  try {
-    // 포토카드 생성
-    const photocard = await prisma.photoCard.create({
+  const { name, genre, grade, price, stock, description } = body;
+  // 포토카드 생성 트랜잭션
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. 포토카드 생성
+    const newPhotoCard = await tx.photoCard.create({
       data: {
-        name: data.name,
-        genre: data.genre,
-        grade: data.grade,
-        price: data.price,
-        description: data.description,
-        imageUrl: imageUrl,
+        name,
+        genre,
+        grade,
+        price,
+        description,
+        imageUrl,
+        // publicId, // cloudinary에 업로드한 이미지의 publicId // 추후 삭제용 // 사용시 스키마에도 추가 필요
         creatorId: userId,
       },
     });
-
-    // 등급에 따른 발행 장수 설정
-    let amount = 1; // 기본값 1로 설정
-    switch (data.grade) {
-      case "LEGENDARY":
-        amount = 1;
-        break;
-      case "SUPER_RARE":
-        amount = 3;
-        break;
-      case "RARE":
-        amount = 8;
-        break;
-      case "COMMON":
-        amount = 20;
-        break;
+    if (!newPhotoCard) {
+      throw new CustomError("포토카드 생성에 실패했습니다.", 404);
     }
 
-    // 포토카드 생성 후 자동으로 사용자의 소유 카드로 등록 (수량은 등급에 따라 설정)
-    await prisma.userPhotoCard.create({
+    // 2. 포토카드 생성 후 사용자 포토카드 생성
+    const newUserPhotoCard = await tx.userPhotoCard.create({
       data: {
-        photoCardId: photocard.id,
-        ownerId: userId,
-        quantity: amount,
+        photoCardId: newPhotoCard.id, // 새 포토카드 ID
+        ownerId: userId, // 포토카드 소유자 ID
+        quantity: stock, // 발행량만큼 생성됨
       },
     });
+    if (!newUserPhotoCard) {
+      throw new CustomError("포토카드 생성에 실패했습니다.", 404);
+    }
 
-    // 응답에 amount 추가
     return {
-      ...photocard,
-      amount,
+      ...newPhotoCard,
+      amount: stock,
     };
-  } catch (error) {
-    console.error("포토카드 생성 중 오류 발생:", error);
-    throw new Error("포토카드 생성에 실패했습니다.");
-  }
+  });
+
+  // 성공 메시지 리턴
+  return result;
 };
 
 // 내 포토카드 상세조회 서비스

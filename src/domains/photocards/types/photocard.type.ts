@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   PhotocardsQueryWithTransform,
   CreatePhotocardSchema,
+  CreatePhotocardRequest,
 } from "../validators/photocard.validator";
 import {
   PHOTOCARD_GENRES,
@@ -90,24 +91,23 @@ export type PhotocardDto = {
   amount: number;
   createdAt: Date;
   updatedAt: Date;
-  userId: string;
+  creatorId: string;
 };
 
 /**
  * 포토카드 생성 요청 인터페이스
  */
-export interface CreatePhotocardRequest {
-  name: string;
-  genre: (typeof PHOTOCARD_GENRES)[number];
-  grade: (typeof PHOTOCARD_GRADES)[number];
-  price: number;
-  description: string;
-  imageUrl: string;
-}
 
 /**
  * 포토카드 생성 응답 인터페이스
  */
+export type CreatePhotocard = (
+  body: CreatePhotocardRequest,
+  imageUrl: string,
+  publicId: string,
+  userId: string
+) => Promise<PhotocardDto & { amount: number }>;
+
 export interface CreatePhotocardResponse {
   id: string;
   name: string;

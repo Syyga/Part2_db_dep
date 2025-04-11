@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import photocardService from "../services/photocard.service";
 import { MyPhotocardsQuery } from "../types/photocard.type";
+import { ApiSignature } from "../../../types";
+import { CustomError } from "../../../utils/errors";
+import { uploadToCloudinary } from "../../../utils/uploadToCloudinary";
 
 /**
  * 사용자의 포토카드 목록 조회
@@ -66,39 +69,27 @@ export const getMyPhotocardsCount = (
  * 포토카드 생성 컨트롤러
  * POST /api/photocards
  */
-export const createPhotocard = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    // 사용자 ID 확인
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({
-        message: "인증이 필요합니다.",
-      });
-      return;
-    }
+export const createPhotocard: ApiSignature = async (req, res) => {
+  const userId = req.user.id;
+  const body = req.body;
+  const file = req.file; // multer가 넣어준 파일 정보
 
-    // 유효성 검사는 미들웨어에서 이미 완료됨
-    // 포토카드 생성
-    const photocard = await photocardService.createPhotocard(
-      req.body,
-      req.body.imageUrl,
-      userId
-    );
-
-    res.status(201).json({
-      message: "포토카드가 성공적으로 생성되었습니다.",
-      data: photocard,
-    });
-  } catch (error) {
-    console.error("포토카드 생성 중 오류 발생:", error);
-    res.status(500).json({
-      message: "포토카드 생성에 실패했습니다.",
-    });
+  if (!file) {
+    throw new CustomError("이미지 파일이 필요합니다.", 400);
   }
+
+  // file을 cloudinary에 업로드
+  const { imageUrl, publicId } = await uploadToCloudinary(file.buffer);
+  console.log("imageUrl: ", imageUrl);
+
+  const response = await photocardService.createPhotocard(
+    body,
+    imageUrl,
+    publicId,
+    userId
+  );
+
+  res.status(201).send(response);
 };
 
 /**

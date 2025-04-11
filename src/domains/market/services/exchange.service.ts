@@ -383,19 +383,7 @@ export const acceptOffer = async (
       });
     }
 
-    // 8. saleCard 수량 차감, 수량이 0이면 SOLD_OUT 상태로 변경
-    // saleCard에 락 설정
-    await tx.$executeRaw`SELECT * FROM "SaleCard" WHERE id = ${saleCard.id} FOR UPDATE`;
-
-    await tx.saleCard.update({
-      where: { id: saleCard.id },
-      data: {
-        quantity: saleCard.quantity - 1,
-        ...(saleCard.quantity - 1 === 0 ? { status: "SOLD_OUT" } : {}),
-      },
-    });
-
-    // 9. 교환제안 상태 업데이트
+    // 8. 교환제안 상태 업데이트
     // 교환제안에도 락 설정
     await tx.$executeRaw`SELECT * FROM "ExchangeOffer" WHERE id = ${id} FOR UPDATE`;
 
@@ -404,7 +392,7 @@ export const acceptOffer = async (
       data: { status: "ACCEPTED" },
     });
 
-    // 10. 거래 내역 기록
+    // 9. 거래 내역 기록
     await tx.transactionLog.create({
       data: {
         transactionType: "EXCHANGE",
@@ -413,6 +401,36 @@ export const acceptOffer = async (
         oldOwnerId: saleCard.sellerId,
         quantity: 1,
         totalPrice: 0,
+      },
+    });
+
+    // 10. saleCard 수량 업데이트, 수량이 0이면 SOLD_OUT 상태로 변경
+    // saleCard에 락 설정
+    await tx.$executeRaw`SELECT * FROM "SaleCard" WHERE id = ${saleCard.id} FOR UPDATE`;
+
+    // TransactionLog에서 해당 saleCard의 총 거래 수량 조회
+    const transactionLogs = await tx.transactionLog.findMany({
+      where: { saleCardId: saleCard.id },
+      select: { quantity: true },
+    });
+
+    // 총 거래된 수량 계산 (현재 거래는 이미 로그에 저장되어 있으므로 +1 필요 없음)
+    const totalTransactedQuantity = transactionLogs.reduce(
+      (total, log) => total + log.quantity,
+      0
+    );
+
+    // 남은 수량 계산
+    const remainingQuantity = Math.max(
+      0,
+      saleCard.quantity - totalTransactedQuantity
+    );
+
+    await tx.saleCard.update({
+      where: { id: saleCard.id },
+      data: {
+        quantity: remainingQuantity,
+        ...(remainingQuantity === 0 ? { status: "SOLD_OUT" } : {}),
       },
     });
 
