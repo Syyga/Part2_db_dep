@@ -86,6 +86,8 @@ model PointHistory {
   resourceType String
   resourceId   String
   createdAt    DateTime @default(now())
+
+  user      User     @relation(fields: [pointId], references: [id])
 }
 
 model RandomBoxDraw {
@@ -147,6 +149,7 @@ model User {
   saleCard  SaleCard[]
   photoCard PhotoCard[]
   points    Point?
+  pointHistories PointHistory[]
 }
 
 model UserPhotoCard {
