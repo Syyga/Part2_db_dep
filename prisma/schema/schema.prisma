@@ -77,6 +77,9 @@ model Point {
   userId String @unique
   points Int    @default(0)
   user   User   @relation(fields: [userId], references: [id])
+
+
+  pointHistories PointHistory[] @relation("PointToHistory")
 }
 
 model PointHistory {
@@ -87,7 +90,8 @@ model PointHistory {
   resourceId   String
   createdAt    DateTime @default(now())
 
-  user      User     @relation(fields: [pointId], references: [id])
+  point        Point    @relation("PointToHistory", fields: [pointId], references: [id])
+  
 }
 
 model RandomBoxDraw {
@@ -149,7 +153,6 @@ model User {
   saleCard  SaleCard[]
   photoCard PhotoCard[]
   points    Point?
-  pointHistories PointHistory[]
 }
 
 model UserPhotoCard {
